@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoxAevum Admin</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111;
+      --border: #222;
+      --text: #e8e8e8;
+      --muted: #666;
+      --accent: #fff;
+      --en: #3b82f6;
+      --ru: #ef4444;
+      --es: #f59e0b;
+      --green: #22c55e;
+      --red: #ef4444;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+    #root { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+
+    /* Header */
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .logo { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+    .logo span { opacity: 0.4; font-weight: 400; }
+
+    /* Auth */
+    .auth-form { display: flex; gap: 10px; align-items: center; }
+    .auth-form input { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 13px; width: 320px; outline: none; font-family: monospace; }
+    .auth-form input:focus { border-color: #444; }
+    .btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: opacity 0.15s; }
+    .btn:hover { opacity: 0.8; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-link { background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+    .btn-link:hover { color: var(--text); background: var(--surface); }
+
+    /* Stats */
+    .stats { display: flex; gap: 16px; margin-bottom: 24px; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; flex: 1; }
+    .stat-num { font-size: 28px; font-weight: 700; line-height: 1; }
+    .stat-label { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+    .tab { padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .tab:hover { color: var(--text); }
+
+    /* Toolbar */
+    .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-btn { padding: 5px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: all 0.15s; }
+    .filter-btn.active { background: var(--surface); color: var(--text); border-color: #444; }
+    .spacer { flex: 1; }
+    .selected-info { font-size: 12px; color: var(--muted); }
+
+    /* Table */
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .table-header { display: grid; grid-template-columns: 32px 1fr 80px 100px 160px; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .table-row { display: grid; grid-template-columns: 32px 1fr 80px 100px 160px; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); align-items: center; transition: background 0.1s; }
+    .table-row:last-child { border-bottom: none; }
+    .table-row:hover { background: rgba(255,255,255,0.02); }
+    .table-row.hidden-row { opacity: 0.45; }
+    .row-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row-title a { color: var(--text); text-decoration: none; }
+    .row-title a:hover { text-decoration: underline; }
+    .row-title .slug { font-size: 11px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Badges */
+    .badges { display: flex; gap: 4px; flex-wrap: wrap; }
+    .badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 3px; letter-spacing: 0.3px; }
+    .badge-en { background: rgba(59,130,246,0.15); color: var(--en); }
+    .badge-ru { background: rgba(239,68,68,0.15); color: var(--ru); }
+    .badge-es { background: rgba(245,158,11,0.15); color: var(--es); }
+
+    /* Status */
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+    .status-live { background: var(--green); }
+    .status-hidden { background: var(--muted); }
+    .status-label { font-size: 12px; margin-left: 6px; }
+
+    /* Actions */
+    .actions { display: flex; gap: 4px; justify-content: flex-end; }
+
+    /* Checkbox */
+    input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal { background: #161616; border: 1px solid var(--border); border-radius: 10px; padding: 24px; max-width: 400px; width: 90%; }
+    .modal h3 { font-size: 16px; margin-bottom: 8px; }
+    .modal p { color: var(--muted); font-size: 13px; line-height: 1.5; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* Empty */
+    .empty { padding: 48px; text-align: center; color: var(--muted); }
+
+    /* Loading */
+    .loading { padding: 48px; text-align: center; color: var(--muted); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--text); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; margin-bottom: 12px; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #161616; border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; font-size: 13px; z-index: 200; animation: slideIn 0.2s ease; max-width: 320px; }
+    @keyframes slideIn { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .toast-ok { border-color: var(--green); }
+    .toast-err { border-color: var(--red); }
+
+    .connected-badge { font-size: 11px; background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2); padding: 3px 10px; border-radius: 20px; }
+    .disconnect-btn { font-size: 11px; color: var(--muted); cursor: pointer; background: none; border: none; margin-left: 8px; }
+    .disconnect-btn:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+const OWNER = 'dol-1';
+const REPO = 'voxaevum';
+const LANG_PATHS = {
+  en: 'src/pages/blog',
+  ru: 'src/pages/ru/blog',
+  es: 'src/pages/es/blog',
+};
+const SIGNAL_PATHS = {
+  en: 'src/pages/signal',
+  ru: 'src/pages/ru/signal',
+  es: 'src/pages/es/signal',
+};
+const SITE = 'https://voxaevum.com';
+
+function useToast() {
+  const [toast, setToast] = useState(null);
+  const show = (msg, ok = true) => {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 3000);
+  };
+  return [toast, show];
+}
+
+function Toast({ toast }) {
+  if (!toast) return null;
+  return <div className={`toast ${toast.ok ? 'toast-ok' : 'toast-err'}`}>{toast.msg}</div>;
+}
+
+function Modal({ title, body, onConfirm, onCancel, danger }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h3>{title}</h3>
+        <p>{body}</p>
+        <div className="modal-actions">
+          <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+          <button className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirm}>
+            {danger ? 'Delete' : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function ghGet(token, path) {
+  const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`, {
+    headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+  });
+  if (!r.ok) return null;
+  return r.json();
+}
+
+async function ghPut(token, path, content, sha, message) {
+  const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`, {
+    method: 'PUT',
+    headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha })
+  });
+  return r.ok;
+}
+
+async function ghDelete(token, path, sha, message) {
+  const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`, {
+    method: 'DELETE',
+    headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, sha })
+  });
+  return r.ok;
+}
+
+function extractTitle(content) {
+  const m = content.match(/title:\s*["']?(.+?)["']?\s*(?:\n|$)/);
+  return m ? m[1].replace(/^["']|["']$/g, '') : null;
+}
+
+function isDraft(content) {
+  return /draft:\s*true/i.test(content);
+}
+
+function setDraftFlag(content, val) {
+  if (/draft:/.test(content)) {
+    return content.replace(/draft:\s*(true|false)/, `draft: ${val}`);
+  }
+  return content.replace(/^---/, `---\ndraft: ${val}`);
+}
+
+async function loadTabFiles(token, type) {
+  const paths = type === 'signal' ? SIGNAL_PATHS : LANG_PATHS;
+  const results = {};
+  await Promise.all(Object.entries(paths).map(async ([lang, dir]) => {
+    const files = await ghGet(token, dir);
+    results[lang] = Array.isArray(files) ? files.filter(f => f.name.endsWith('.astro')) : [];
+  }));
+  return results;
+}
+
+function buildPostMap(filesByLang) {
+  const map = {};
+  for (const [lang, files] of Object.entries(filesByLang)) {
+    for (const f of files) {
+      const base = f.name.replace(/\.astro$/, '');
+      if (!map[base]) map[base] = { slug: base, langs: {} };
+      map[base].langs[lang] = f;
+    }
+  }
+  return map;
+}
+
+function App() {
+  const [token, setToken] = useState(() => sessionStorage.getItem('va_token') || '');
+  const [tokenInput, setTokenInput] = useState('');
+  const [connected, setConnected] = useState(false);
+  const [tab, setTab] = useState('blog');
+  const [filter, setFilter] = useState('all');
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [modal, setModal] = useState(null);
+  const [actionLoading, setActionLoading] = useState(new Set());
+  const [toast, showToast] = useToast();
+  const postDetailCache = useRef({});
+
+  const loadPosts = useCallback(async (tok, type) => {
+    setLoading(true);
+    setSelected(new Set());
+    postDetailCache.current = {};
+    try {
+      const filesByLang = await loadTabFiles(tok, type);
+      const map = buildPostMap(filesByLang);
+      const items = Object.values(map).sort((a, b) => b.slug.localeCompare(a.slug));
+      setPosts(items);
+    } catch(e) {
+      showToast('Failed to load posts', false);
+    }
+    setLoading(false);
+  }, []);
+
+  const connect = async () => {
+    const tok = tokenInput.trim();
+    if (!tok) return;
+    setLoading(true);
+    const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}`, {
+      headers: { Authorization: `token ${tok}` }
+    });
+    if (r.ok) {
+      sessionStorage.setItem('va_token', tok);
+      setToken(tok);
+      setConnected(true);
+      await loadPosts(tok, 'blog');
+      showToast('Connected to GitHub ✓');
+    } else {
+      showToast('Invalid token or no access', false);
+    }
+    setLoading(false);
+  };
+
+  const disconnect = () => {
+    sessionStorage.removeItem('va_token');
+    setToken('');
+    setTokenInput('');
+    setConnected(false);
+    setPosts([]);
+  };
+
+  useEffect(() => {
+    if (token) { setConnected(true); loadPosts(token, tab); }
+  }, []);
+
+  useEffect(() => {
+    if (connected) loadPosts(token, tab);
+  }, [tab]);
+
+  const getDetail = async (slug, lang, type) => {
+    const key = `${type}-${lang}-${slug}`;
+    if (postDetailCache.current[key]) return postDetailCache.current[key];
+    const dir = (type === 'signal' ? SIGNAL_PATHS : LANG_PATHS)[lang];
+    const d = await ghGet(token, `${dir}/${slug}.astro`);
+    if (!d) return null;
+    const content = decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+    const detail = { content, sha: d.sha, path: d.path };
+    postDetailCache.current[key] = detail;
+    return detail;
+  };
+
+  const getTitle = async (post) => {
+    for (const lang of ['en', 'ru', 'es']) {
+      if (post.langs[lang]) {
+        const d = await getDetail(post.slug, lang, tab);
+        if (d) { const t = extractTitle(d.content); if (t) return t; }
+      }
+    }
+    return post.slug;
+  };
+
+  const getStatus = async (post) => {
+    const lang = Object.keys(post.langs)[0];
+    const d = await getDetail(post.slug, lang, tab);
+    return d ? isDraft(d.content) : false;
+  };
+
+  // Enrich posts with title + draft status
+  const [enriched, setEnriched] = useState([]);
+  useEffect(() => {
+    if (!posts.length) { setEnriched([]); return; }
+    let active = true;
+    (async () => {
+      const items = await Promise.all(posts.map(async p => {
+        const title = await getTitle(p);
+        const draft = await getStatus(p);
+        return { ...p, title, draft };
+      }));
+      if (active) setEnriched(items);
+    })();
+    return () => { active = false; };
+  }, [posts]);
+
+  const toggleHide = async (post) => {
+    const newDraft = !post.draft;
+    setActionLoading(s => new Set(s).add(post.slug));
+    let ok = 0;
+    for (const [lang, f] of Object.entries(post.langs)) {
+      const d = await getDetail(post.slug, lang, tab);
+      if (!d) continue;
+      const newContent = setDraftFlag(d.content, newDraft);
+      const success = await ghPut(token, d.path, newContent, d.sha,
+        `${newDraft ? 'Hide' : 'Unhide'} post: ${post.slug} [${lang}]`);
+      if (success) {
+        postDetailCache.current[`${tab}-${lang}-${post.slug}`] = { ...d, content: newContent };
+        ok++;
+      }
+    }
+    setActionLoading(s => { const n = new Set(s); n.delete(post.slug); return n; });
+    if (ok > 0) {
+      setEnriched(e => e.map(p => p.slug === post.slug ? { ...p, draft: newDraft } : p));
+      showToast(`${newDraft ? 'Hidden' : 'Visible'}: ${post.slug.slice(0,40)}`);
+    } else showToast('Action failed', false);
+  };
+
+  const deletePost = async (post) => {
+    setActionLoading(s => new Set(s).add(post.slug));
+    let ok = 0;
+    for (const [lang, f] of Object.entries(post.langs)) {
+      const d = await getDetail(post.slug, lang, tab);
+      if (!d) continue;
+      const success = await ghDelete(token, d.path, d.sha, `Delete post: ${post.slug} [${lang}]`);
+      if (success) ok++;
+    }
+    setActionLoading(s => { const n = new Set(s); n.delete(post.slug); return n; });
+    if (ok > 0) {
+      setEnriched(e => e.filter(p => p.slug !== post.slug));
+      setSelected(s => { const n = new Set(s); n.delete(post.slug); return n; });
+      showToast(`Deleted: ${post.slug.slice(0,40)}`);
+    } else showToast('Delete failed', false);
+  };
+
+  const handleBulkHide = async (hide) => {
+    for (const slug of selected) {
+      const post = enriched.find(p => p.slug === slug);
+      if (post) await toggleHide({ ...post, draft: !hide });
+    }
+    setSelected(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    for (const slug of selected) {
+      const post = enriched.find(p => p.slug === slug);
+      if (post) await deletePost(post);
+    }
+    setSelected(new Set());
+  };
+
+  const filtered = enriched.filter(p => {
+    if (filter === 'live') return !p.draft;
+    if (filter === 'draft') return p.draft;
+    return true;
+  });
+
+  const total = enriched.length;
+  const live = enriched.filter(p => !p.draft).length;
+  const hidden = enriched.filter(p => p.draft).length;
+
+  const allChecked = filtered.length > 0 && filtered.every(p => selected.has(p.slug));
+  const toggleAll = () => {
+    if (allChecked) setSelected(new Set());
+    else setSelected(new Set(filtered.map(p => p.slug)));
+  };
+
+  const postUrl = (post) => {
+    const lang = Object.keys(post.langs)[0];
+    const base = lang === 'en' ? '' : `/${lang}`;
+    const section = tab === 'signal' ? 'signal' : 'blog';
+    return `${SITE}${base}/${section}/${post.slug}`;
+  };
+
+  return (
+    <>
+      <div id="root-inner">
+        <div className="header">
+          <div className="logo">VoxAevum <span>Admin</span></div>
+          {!connected ? (
+            <div className="auth-form">
+              <input
+                type="password"
+                placeholder="GitHub Personal Access Token"
+                value={tokenInput}
+                onChange={e => setTokenInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && connect()}
+              />
+              <button className="btn btn-primary" onClick={connect} disabled={loading}>
+                {loading ? '...' : 'Connect'}
+              </button>
+            </div>
+          ) : (
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span className="connected-badge">● Connected</span>
+              <button className="disconnect-btn" onClick={disconnect}>Disconnect</button>
+            </div>
+          )}
+        </div>
+
+        {connected && (
+          <>
+            <div className="stats">
+              <div className="stat"><div className="stat-num">{total}</div><div className="stat-label">Total</div></div>
+              <div className="stat"><div className="stat-num" style={{color:'var(--green)'}}>{live}</div><div className="stat-label">Live</div></div>
+              <div className="stat"><div className="stat-num" style={{color:'var(--muted)'}}>{hidden}</div><div className="stat-label">Hidden</div></div>
+            </div>
+
+            <div className="tabs">
+              <button className={`tab ${tab==='blog'?'active':''}`} onClick={()=>setTab('blog')}>Blog</button>
+              <button className={`tab ${tab==='signal'?'active':''}`} onClick={()=>setTab('signal')}>Signal</button>
+            </div>
+
+            <div className="toolbar">
+              {['all','live','draft'].map(f => (
+                <button key={f} className={`filter-btn ${filter===f?'active':''}`} onClick={()=>setFilter(f)}>
+                  {f.charAt(0).toUpperCase()+f.slice(1)}
+                </button>
+              ))}
+              <div className="spacer" />
+              {selected.size > 0 && (
+                <>
+                  <span className="selected-info">{selected.size} selected</span>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>setModal({type:'bulk-hide',val:true})}>Hide all</button>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>setModal({type:'bulk-show'})}>Show all</button>
+                  <button className="btn btn-danger btn-sm" onClick={()=>setModal({type:'bulk-delete'})}>Delete all</button>
+                </>
+              )}
+            </div>
+
+            <div className="table-wrap">
+              <div className="table-header">
+                <input type="checkbox" checked={allChecked} onChange={toggleAll} />
+                <span>Title / Slug</span>
+                <span>Langs</span>
+                <span>Status</span>
+                <span style={{textAlign:'right'}}>Actions</span>
+              </div>
+
+              {loading && (
+                <div className="loading">
+                  <div className="spinner" /><br/>Loading...
+                </div>
+              )}
+
+              {!loading && filtered.length === 0 && (
+                <div className="empty">No posts found</div>
+              )}
+
+              {!loading && filtered.map(post => {
+                const busy = actionLoading.has(post.slug);
+                return (
+                  <div key={post.slug} className={`table-row ${post.draft?'hidden-row':''}`}>
+                    <input type="checkbox" checked={selected.has(post.slug)}
+                      onChange={() => setSelected(s => {
+                        const n = new Set(s);
+                        n.has(post.slug) ? n.delete(post.slug) : n.add(post.slug);
+                        return n;
+                      })} />
+                    <div className="row-title">
+                      <a href={postUrl(post)} target="_blank" rel="noreferrer">
+                        {post.title || post.slug}
+                      </a>
+                      <div className="slug">{post.slug}</div>
+                    </div>
+                    <div className="badges">
+                      {Object.keys(post.langs).map(l => (
+                        <span key={l} className={`badge badge-${l}`}>{l.toUpperCase()}</span>
+                      ))}
+                    </div>
+                    <div>
+                      <span className={`status-dot ${post.draft?'status-hidden':'status-live'}`} />
+                      <span className="status-label" style={{color: post.draft ? 'var(--muted)' : 'var(--green)'}}>
+                        {post.draft ? 'Hidden' : 'Live'}
+                      </span>
+                    </div>
+                    <div className="actions">
+                      <button className="btn-link" disabled={busy}
+                        onClick={() => toggleHide(post)}>
+                        {busy ? '...' : post.draft ? 'Show' : 'Hide'}
+                      </button>
+                      <button className="btn-link" disabled={busy}
+                        style={{color:'var(--red)'}}
+                        onClick={() => setModal({type:'delete', post})}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {!connected && !loading && (
+          <div style={{textAlign:'center',padding:'60px 0',color:'var(--muted)'}}>
+            <div style={{fontSize:32,marginBottom:12}}>⬡</div>
+            <div>Enter your GitHub token to connect</div>
+            <div style={{fontSize:12,marginTop:8,opacity:0.6}}>Needs <code>repo</code> scope · Stored in sessionStorage only</div>
+          </div>
+        )}
+      </div>
+
+      {modal?.type === 'delete' && (
+        <Modal
+          title="Delete post?"
+          body={`This will permanently delete "${modal.post.title}" from GitHub in all available languages. This cannot be undone.`}
+          danger
+          onConfirm={() => { setModal(null); deletePost(modal.post); }}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === 'bulk-delete' && (
+        <Modal
+          title={`Delete ${selected.size} posts?`}
+          body="All selected posts will be permanently deleted from GitHub in all languages. This cannot be undone."
+          danger
+          onConfirm={() => { setModal(null); handleBulkDelete(); }}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === 'bulk-hide' && (
+        <Modal
+          title={`Hide ${selected.size} posts?`}
+          body="Selected posts will be set to draft:true in all languages."
+          onConfirm={() => { setModal(null); handleBulkHide(true); }}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === 'bulk-show' && (
+        <Modal
+          title={`Show ${selected.size} posts?`}
+          body="Selected posts will be made visible (draft:false) in all languages."
+          onConfirm={() => { setModal(null); handleBulkHide(false); }}
+          onCancel={() => setModal(null)}
+        />
+      )}
+
+      <Toast toast={toast} />
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

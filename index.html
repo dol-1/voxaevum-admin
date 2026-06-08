@@ -227,8 +227,12 @@ function buildPostMap(filesByLang) {
   for (const [lang, files] of Object.entries(filesByLang)) {
     for (const f of files) {
       const base = f.name.replace(/\.astro$/, '');
-      if (!map[base]) map[base] = { slug: base, langs: {} };
-      map[base].langs[lang] = f;
+      const gm = base.match(/-(\d{6})$/);
+      const key = gm ? gm[1] : base;
+      if (!map[key]) map[key] = { group: key, slug: base, slugs: {}, langs: {} };
+      map[key].langs[lang] = f;
+      map[key].slugs[lang] = base;
+      if (lang === 'en') map[key].slug = base;
     }
   }
   return map;
@@ -317,7 +321,7 @@ function App() {
   const getTitle = async (post) => {
     for (const lang of ['en', 'ru', 'es']) {
       if (post.langs[lang]) {
-        const d = await getDetail(post.slug, lang, tab);
+        const d = await getDetail(post.slugs?.[lang] || post.slug, lang, tab);
         if (d) { const t = extractTitle(d.content); if (t) return t; }
       }
     }
@@ -326,7 +330,7 @@ function App() {
 
   const getStatus = async (post) => {
     const lang = Object.keys(post.langs)[0];
-    const d = await getDetail(post.slug, lang, tab);
+    const d = await getDetail(post.slugs?.[lang] || post.slug, lang, tab);
     return d ? isDraft(d.content) : false;
   };
 
@@ -351,13 +355,13 @@ function App() {
     setActionLoading(s => new Set(s).add(post.slug));
     let ok = 0;
     for (const [lang, f] of Object.entries(post.langs)) {
-      const d = await getDetail(post.slug, lang, tab);
+      const d = await getDetail(post.slugs?.[lang] || post.slug, lang, tab);
       if (!d) continue;
       const newContent = setDraftFlag(d.content, newDraft);
       const success = await ghPut(token, d.path, newContent, d.sha,
         `${newDraft ? 'Hide' : 'Unhide'} post: ${post.slug} [${lang}]`);
       if (success) {
-        postDetailCache.current[`${tab}-${lang}-${post.slug}`] = { ...d, content: newContent };
+        postDetailCache.current[`${tab}-${lang}-${post.slugs?.[lang] || post.slug}`] = { ...d, content: newContent };
         ok++;
       }
     }
@@ -372,7 +376,7 @@ function App() {
     setActionLoading(s => new Set(s).add(post.slug));
     let ok = 0;
     for (const [lang, f] of Object.entries(post.langs)) {
-      const d = await getDetail(post.slug, lang, tab);
+      const d = await getDetail(post.slugs?.[lang] || post.slug, lang, tab);
       if (!d) continue;
       const success = await ghDelete(token, d.path, d.sha, `Delete post: ${post.slug} [${lang}]`);
       if (success) ok++;
@@ -419,9 +423,10 @@ function App() {
 
   const postUrl = (post) => {
     const lang = Object.keys(post.langs)[0];
+    const lslug = post.slugs?.[lang] || post.slug;
     const base = lang === 'en' ? '' : `/${lang}`;
     const section = tab === 'signal' ? 'signal' : 'blog';
-    return `${SITE}${base}/${section}/${post.slug}`;
+    return `${SITE}${base}/${section}/${lslug}`;
   };
 
   return (

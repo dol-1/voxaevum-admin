@@ -255,7 +255,11 @@ function App() {
     try {
       const filesByLang = await loadTabFiles(tok, type);
       const map = buildPostMap(filesByLang);
-      const items = Object.values(map).sort((a, b) => b.slug.localeCompare(a.slug));
+      const groupId = (s) => { const m = s.match(/-(\d{6})$/); return m ? parseInt(m[1],10) : -1; };
+      const items = Object.values(map).sort((a, b) => {
+        const d = groupId(b.slug) - groupId(a.slug);
+        return d !== 0 ? d : b.slug.localeCompare(a.slug);
+      });
       setPosts(items);
     } catch(e) {
       showToast('Failed to load posts', false);

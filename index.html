@@ -65,8 +65,8 @@
 
     /* Table */
     .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-    .table-header { display: grid; grid-template-columns: 32px 1fr 80px 100px 160px; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .table-row { display: grid; grid-template-columns: 32px 1fr 80px 100px 160px; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); align-items: center; transition: background 0.1s; }
+    .table-header { display: grid; grid-template-columns: 32px 1fr 120px 80px 100px 160px; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .table-row { display: grid; grid-template-columns: 32px 1fr 120px 80px 100px 160px; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); align-items: center; transition: background 0.1s; }
     .table-row:last-child { border-bottom: none; }
     .table-row:hover { background: rgba(255,255,255,0.02); }
     .table-row.hidden-row { opacity: 0.45; }
@@ -197,8 +197,23 @@ async function ghDelete(token, path, sha, message) {
 }
 
 function extractTitle(content) {
-  const m = content.match(/title:\s*["']?(.+?)["']?\s*(?:\n|$)/);
-  return m ? m[1].replace(/^["']|["']$/g, '') : null;
+  // Frontmatter form: title: 'Some Title with internal apostrophes',
+  // Match quoted value ending at quote + optional comma + line end.
+  let m = content.match(/title:\s*'([\s\S]*?)',?\s*\n/);
+  if (!m) m = content.match(/title:\s*"([\s\S]*?)",?\s*\n/);
+  return m ? m[1] : null;
+}
+
+function extractDate(content) {
+  let m = content.match(/date:\s*'([^']*)'/);
+  if (!m) m = content.match(/date:\s*"([^"]*)"/);
+  return m ? m[1] : '';
+}
+
+function parseDate(str) {
+  // 'June 17, 2026' -> timestamp; fallback 0
+  const t = Date.parse(str);
+  return isNaN(t) ? 0 : t;
 }
 
 function isDraft(content) {
@@ -217,7 +232,7 @@ async function loadTabFiles(token, type) {
   const results = {};
   await Promise.all(Object.entries(paths).map(async ([lang, dir]) => {
     const files = await ghGet(token, dir);
-    results[lang] = Array.isArray(files) ? files.filter(f => f.name.endsWith('.astro')) : [];
+    results[lang] = Array.isArray(files) ? files.filter(f => f.name.endsWith('.astro') && f.name !== 'index.astro') : [];
   }));
   return results;
 }
@@ -334,6 +349,16 @@ function App() {
     return d ? isDraft(d.content) : false;
   };
 
+  const getDate = async (post) => {
+    for (const lang of ['en', 'ru', 'es']) {
+      if (post.langs[lang]) {
+        const d = await getDetail(post.slugs?.[lang] || post.slug, lang, tab);
+        if (d) { const dt = extractDate(d.content); if (dt) return dt; }
+      }
+    }
+    return '';
+  };
+
   // Enrich posts with title + draft status
   const [enriched, setEnriched] = useState([]);
   useEffect(() => {
@@ -343,8 +368,15 @@ function App() {
       const items = await Promise.all(posts.map(async p => {
         const title = await getTitle(p);
         const draft = await getStatus(p);
-        return { ...p, title, draft };
+        const date = await getDate(p);
+        return { ...p, title, draft, date };
       }));
+      // Sort by actual publish date desc; tie-break on group ID desc.
+      items.sort((a, b) => {
+        const dd = parseDate(b.date) - parseDate(a.date);
+        if (dd !== 0) return dd;
+        return (parseInt(b.group)||0) - (parseInt(a.group)||0);
+      });
       if (active) setEnriched(items);
     })();
     return () => { active = false; };
@@ -489,6 +521,7 @@ function App() {
               <div className="table-header">
                 <input type="checkbox" checked={allChecked} onChange={toggleAll} />
                 <span>Title / Slug</span>
+                <span>Date</span>
                 <span>Langs</span>
                 <span>Status</span>
                 <span style={{textAlign:'right'}}>Actions</span>
@@ -520,6 +553,7 @@ function App() {
                       </a>
                       <div className="slug">{post.slug}</div>
                     </div>
+                    <div className="row-date" style={{fontSize:'12px', color:'var(--muted)'}}>{post.date || '\u2014'}</div>
                     <div className="badges">
                       {Object.keys(post.langs).map(l => (
                         <span key={l} className={`badge badge-${l}`}>{l.toUpperCase()}</span>

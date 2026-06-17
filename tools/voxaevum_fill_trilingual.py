@@ -71,6 +71,19 @@ def prompt_secret(label):
 
 GH_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
 DS_KEY = os.environ.get("DEEPSEEK_API_KEY", "").strip()
+
+# Read from a secrets file if present (avoids any interactive prompt — paste-safe).
+# Format (one per line):  GITHUB_TOKEN=ghp_...   /   DEEPSEEK_API_KEY=sk-...
+SECRETS_FILE = os.path.expanduser("~/.voxaevum_secrets")
+if (not GH_TOKEN or not DS_KEY) and os.path.isfile(SECRETS_FILE):
+    with open(SECRETS_FILE, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith("GITHUB_TOKEN=") and not GH_TOKEN:
+                GH_TOKEN = line.split("=", 1)[1].strip().strip('"').strip("'")
+            elif line.startswith("DEEPSEEK_API_KEY=") and not DS_KEY:
+                DS_KEY = line.split("=", 1)[1].strip().strip('"').strip("'")
+
 if not GH_TOKEN:
     GH_TOKEN = prompt_secret("GitHub PAT (Contents read+write): ")
 if not DS_KEY:

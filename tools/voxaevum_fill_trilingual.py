@@ -37,12 +37,44 @@ DRY_RUN = "--dry-run" in sys.argv
 NO_BUILD = "--no-build" in sys.argv
 
 # ----------------------------------------------------------------------------- tokens
+def prompt_secret(label):
+    """Read a secret from the real terminal, flushing any pending paste buffer
+    first so that lines pasted *after* this command can't leak into the input."""
+    try:
+        tty = open("/dev/tty", "r+")
+    except Exception:
+        # No controlling terminal (e.g. piped) -> fall back to getpass
+        return getpass.getpass(label).strip()
+    try:
+        import termios
+        # Discard anything already sitting in the input queue (the rest of a
+        # multi-line paste), so only what the user types NOW is read.
+        termios.tcflush(tty.fileno(), termios.TCIFLUSH)
+    except Exception:
+        pass
+    tty.write(label)
+    tty.flush()
+    # Turn off echo for the secret
+    try:
+        import termios
+        old = termios.tcgetattr(tty.fileno())
+        new = old[:]
+        new[3] = new[3] & ~termios.ECHO
+        termios.tcsetattr(tty.fileno(), termios.TCSADRAIN, new)
+        line = tty.readline()
+        termios.tcsetattr(tty.fileno(), termios.TCSADRAIN, old)
+        tty.write("\n"); tty.flush()
+    except Exception:
+        line = tty.readline()
+    tty.close()
+    return line.strip()
+
 GH_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
 DS_KEY = os.environ.get("DEEPSEEK_API_KEY", "").strip()
 if not GH_TOKEN:
-    GH_TOKEN = getpass.getpass("GitHub PAT (Contents read+write): ").strip()
+    GH_TOKEN = prompt_secret("GitHub PAT (Contents read+write): ")
 if not DS_KEY:
-    DS_KEY = getpass.getpass("DeepSeek API key: ").strip()
+    DS_KEY = prompt_secret("DeepSeek API key: ")
 if not GH_TOKEN or not DS_KEY:
     sys.exit("Both tokens are required. Aborting.")
 
@@ -213,15 +245,15 @@ def build_astro(lang, title, summary, body_html, author, date, tags_literal):
     return "\n".join(lines)
 
 # ----------------------------------------------------------------------------- repo
-def run(cmd, cwd=None, check=True):
-    print(f"  $ {' '.join(cmd)}")
+def run(cmd, cwd=None, check=True, quiet_cmd=None):
+    print(f"  $ {quiet_cmd if quiet_cmd else ' '.join(cmd)}")
     r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
     if r.stdout.strip():
         print("   ", r.stdout.strip()[:500])
     if r.returncode != 0:
         print("    STDERR:", r.stderr.strip()[:500])
         if check:
-            sys.exit(f"Command failed: {' '.join(cmd)}")
+            sys.exit(f"Command failed: {quiet_cmd if quiet_cmd else ' '.join(cmd)}")
     return r
 
 def ensure_repo():
@@ -231,7 +263,8 @@ def ensure_repo():
     else:
         print(f"Cloning repo to {REPO_DIR}...")
         url = f"https://{GH_TOKEN}@github.com/{OWNER}/{REPO}.git"
-        run(["git", "clone", "--depth", "1", url, REPO_DIR])
+        run(["git", "clone", "--depth", "1", url, REPO_DIR],
+            quiet_cmd=f"git clone --depth 1 https://***@github.com/{OWNER}/{REPO}.git {REPO_DIR}")
 
 def docker_build():
     print("Building site with Node 22 (Docker)...")
